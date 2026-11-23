@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Water Tank Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef3f4;--panel:#fff;--ink:#12303a;--muted:#5d7780;--line:#c9d8dc;--water:#1f9bb5;--water2:#136f86;--ok:#2e8b57;--warn:#d98a1c;--bad:#c4452f;--btn:#12303a;--btn-ink:#fff}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1b20;--panel:#15272e;--ink:#e3eef1;--muted:#8fa8b0;--line:#27414a;--water:#2bb4d0;--water2:#1a8aa3;--btn:#e3eef1;--btn-ink:#0e1b20}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "IBM Plex Sans",system-ui,sans-serif}
+h1,h2,.num{font-family:"Space Grotesk",system-ui,sans-serif}
+main{max-width:980px;margin:0 auto;padding:28px 18px 48px;display:grid;gap:20px;grid-template-columns:minmax(260px,340px) 1fr}
+header{grid-column:1/-1}
+h1{margin:0;font-size:1.9rem}
+header p{margin:4px 0 0;color:var(--muted)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+h2{margin:0 0 12px;font-size:1.05rem}
+.tank-wrap{display:flex;gap:14px;align-items:stretch}
+.scale{display:flex;flex-direction:column;justify-content:space-between;font-size:.8rem;color:var(--muted);text-align:right;height:320px}
+.tank{position:relative;flex:1;height:320px;border:3px solid var(--ink);border-top-width:0;border-radius:0 0 14px 14px;overflow:hidden;background:transparent}
+.water{position:absolute;left:0;right:0;bottom:0;height:45%;background:linear-gradient(var(--water),var(--water2));transition:height .6s ease}
+.mark{position:absolute;left:0;right:0;border-top:2px dashed;font-size:.7rem;padding-left:4px}
+.mark.hi{bottom:90%;border-color:var(--bad);color:var(--bad)}
+.mark.lo{bottom:20%;border-color:var(--warn);color:var(--warn)}
+.level{position:absolute;inset:0;display:grid;place-items:center;font-size:2.6rem;font-weight:700;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.45)}
+.rows{display:grid;gap:10px;margin:0}
+.row{display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.row:last-child{border:0;padding:0}
+.row dt{color:var(--muted)}.row dd{margin:0;font-weight:600}
+.badge{display:inline-block;padding:2px 12px;border-radius:99px;color:#fff;font-weight:600;font-size:.9rem}
+.IDLE{background:#6b8791}.FILLING{background:var(--ok)}.DRAINING{background:var(--warn)}.FULL{background:var(--bad)}.EMPTY{background:var(--bad)}
+.on{color:var(--ok)}.off{color:var(--muted)}
+.btns{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-top:4px}
+button{font:inherit;font-weight:600;padding:10px 12px;border-radius:8px;border:2px solid var(--btn);background:var(--btn);color:var(--btn-ink);cursor:pointer}
+button.alt{background:transparent;color:var(--ink)}
+button:focus-visible{outline:3px solid var(--water);outline-offset:2px}
+button:disabled{opacity:.45;cursor:not-allowed}
+.right{display:grid;gap:20px;align-content:start}
+.msg{min-height:1.5em;color:var(--muted);margin:10px 0 0}
+.hist{max-height:190px;overflow:auto;font:.85rem/1.6 ui-monospace,Menlo,monospace;margin:0;padding:0;list-style:none}
+.hist li{border-bottom:1px solid var(--line);padding:2px 0}
+.hist-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.hist-head h2{margin:0}
+.hist-head button{padding:6px 10px;font-size:.85rem}
+@media (max-width:720px){main{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.water{transition:none}}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <h1>Water Tank Control</h1>
+  <p>Simulasi pompa dan katup pembuangan. Pompa menyala saat level ≤ 20% dan mati saat level ≥ 90%.</p>
+</header>
+
+<section class="card" aria-label="Tangki">
+  <h2>Tangki</h2>
+  <div class="tank-wrap">
+    <div class="scale" aria-hidden="true"><span>100%</span><span>75%</span><span>50%</span><span>25%</span><span>0%</span></div>
+    <div class="tank" role="img" aria-label="Level air">
+      <div class="water" id="water"></div>
+      <div class="mark hi">batas atas 90%</div>
+      <div class="mark lo">batas bawah 20%</div>
+      <div class="level" id="levelText">45.0%</div>
+    </div>
+  </div>
+</section>
+
+<div class="right">
+  <section class="card" aria-label="Status">
+    <h2>Status sistem</h2>
+    <dl class="rows">
+      <div class="row"><dt>Kondisi</dt><dd><span class="badge IDLE" id="state">IDLE</span></dd></div>
+      <div class="row"><dt>Simulasi</dt><dd id="sim">Berhenti</dd></div>
+      <div class="row"><dt>Pompa</dt><dd id="pump">OFF</dd></div>
+      <div class="row"><dt>Katup buang</dt><dd id="valve">CLOSED</dd></div>
+    </dl>
+  </section>
+
+  <section class="card" aria-label="Kontrol">
+    <h2>Kontrol</h2>
+    <div class="btns">
+      <button id="bStart" data-a="start">Mulai simulasi</button>
+      <button id="bStop" data-a="stop" class="alt">Hentikan simulasi</button>
+      <button data-a="open">Buka katup</button>
+      <button data-a="close" class="alt">Tutup katup</button>
+      <button data-a="reset" class="alt">Reset</button>
+    </div>
+    <p class="msg" id="msg" aria-live="polite"></p>
+  </section>
+
+  <section class="card" aria-label="Riwayat">
+    <div class="hist-head">
+      <h2>Riwayat</h2>
+      <button class="alt" id="bDl">Unduh history.txt</button>
+    </div>
+    <ul class="hist" id="hist"><li>Belum ada data. Mulai simulasi untuk mencatat riwayat.</li></ul>
+  </section>
+</div>
+</main>
+
+<script>
+let state = {{ state | tojson }};
+let history = [];
+let timer = null;
+const $ = id => document.getElementById(id);
+
+function render() {
+  const lvl = state.waterLevel;
+  $("water").style.height = lvl + "%";
+  $("levelText").textContent = lvl.toFixed(1) + "%";
+  const st = $("state");
+  st.textContent = state.state;
+  st.className = "badge " + state.state;
+  $("sim").textContent = state.simulationStatus ? "Berjalan" : "Berhenti";
+  $("pump").textContent = state.pumpStatus ? "ON" : "OFF";
+  $("pump").className = state.pumpStatus ? "on" : "off";
+  $("valve").textContent = state.valveStatus ? "OPEN" : "CLOSED";
+  $("valve").className = state.valveStatus ? "on" : "off";
+  $("bStart").disabled = !!state.simulationStatus;
+  $("bStop").disabled = !state.simulationStatus;
+}
+
+function logLine() {
+  return `Level: ${state.waterLevel.toFixed(1)}% | Pump: ${state.pumpStatus ? "ON" : "OFF"} | Valve: ${state.valveStatus ? "OPEN" : "CLOSED"}`;
+}
+
+function addHistory() {
+  history.push(logLine());
+  const ul = $("hist");
+  if (history.length === 1) ul.innerHTML = "";
+  const li = document.createElement("li");
+  li.textContent = history[history.length - 1];
+  ul.prepend(li);
+}
+
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+async function send(action) {
+  let r;
+  try {
+    r = await fetch("/api/action", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({state, action})
+    });
+  } catch (e) {
+    stopTimer();
+    $("msg").textContent = "Tidak bisa terhubung ke server. Buka halaman lewat alamat aplikasi (http://127.0.0.1:5000 atau domain Vercel), bukan dengan membuka file index.html langsung.";
+    return;
+  }
+
+  let data = null;
+  try { data = await r.json(); } catch (e) {}
+
+  if (!r.ok || !data || !data.state) {
+    stopTimer();
+    $("msg").textContent = (data && data.error) || `Server menjawab dengan kode ${r.status}. Cek log server.`;
+    return;
+  }
+
+  state = data.state;
+  if (data.message) $("msg").textContent = data.message;
+  if (action === "reset") { history = []; $("hist").innerHTML = "<li>Belum ada data. Mulai simulasi untuk mencatat riwayat.</li>"; }
+  if (action === "start" || action === "tick") addHistory();
+  syncTimer();
+  render();
+}
+
+function syncTimer() {
+  if (state.simulationStatus && !timer) timer = setInterval(() => send("tick"), 1000);
+  if (!state.simulationStatus && timer) { clearInterval(timer); timer = null; }
+}
+
+document.querySelectorAll("button[data-a]").forEach(b =>
+  b.addEventListener("click", () => send(b.dataset.a)));
+
+$("bDl").addEventListener("click", () => {
+  if (!history.length) { $("msg").textContent = "Riwayat masih kosong."; return; }
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([history.join("\n") + "\n"], {type: "text/plain"}));
+  a.download = "history.txt";
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+render();
+</script>
+</body>
+</html>
