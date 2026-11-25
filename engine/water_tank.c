@@ -25,7 +25,6 @@ typedef struct {
     SystemState state;
 } WaterTank;
 
-// Inisialisasi sistem
 void initializeSystem(WaterTank *tank) {
     tank->waterLevel = 45.0;
     tank->inflowRate = 5.0;
@@ -36,7 +35,6 @@ void initializeSystem(WaterTank *tank) {
     tank->state = IDLE;
 }
 
-// Kontrol otomatis pompa dengan hysteresis
 void controlPump(WaterTank *tank) {
     if (tank->waterLevel <= LOW_LIMIT) {
         tank->pumpStatus = 1;
@@ -46,7 +44,6 @@ void controlPump(WaterTank *tank) {
     }
 }
 
-// Menghitung perubahan level air
 void calculateWaterLevel(WaterTank *tank) {
     float inflow = 0;
     float outflow = 0;
@@ -71,7 +68,6 @@ void calculateWaterLevel(WaterTank *tank) {
     }
 }
 
-// Menentukan kondisi sistem
 void updateSystem(WaterTank *tank) {
     if (tank->waterLevel >= MAX_LEVEL) {
         tank->state = FULL;
@@ -93,7 +89,6 @@ void updateSystem(WaterTank *tank) {
     }
 }
 
-// Menampilkan status sistem
 void displayStatus(WaterTank tank) {
     printf("\n========== WATER TANK ==========\n");
     printf("Water Level : %.1f%%\n", tank.waterLevel);
@@ -115,7 +110,6 @@ void displayStatus(WaterTank tank) {
     printf("================================\n");
 }
 
-// Menyimpan riwayat ke TXT
 void saveHistory(WaterTank tank) {
     FILE *file = fopen("history.txt", "a");
 
@@ -134,7 +128,6 @@ void saveHistory(WaterTank tank) {
     fclose(file);
 }
 
-// Menu utama
 void showMenu() {
     printf("\n===== WATER TANK CONTROL =====\n");
     printf("1. Start simulation\n");
@@ -146,15 +139,12 @@ void showMenu() {
     printf("Choose: ");
 }
 
-// Satu langkah simulasi (dipakai tombol Start dan timer di web)
 void stepSimulation(WaterTank *tank) {
     controlPump(tank);
     calculateWaterLevel(tank);
     updateSystem(tank);
 }
 
-// Menjalankan satu pilihan menu, mengembalikan pesan untuk pengguna.
-// Dipakai bersama oleh mode menu (terminal) dan mode API (web).
 const char *applyAction(WaterTank *tank, int choice) {
     switch (choice) {
         case 1:
@@ -188,11 +178,6 @@ const char *applyAction(WaterTank *tank, int choice) {
     }
 }
 
-// ---------- Mode API untuk web ----------
-// Pemakaian:
-//   water_tank --api <aksi> [level pump valve sim state]
-// aksi: start | stop | open | close | reset | tick
-// Hasil: satu baris JSON di stdout.
 static const char *STATE_NAMES[] = {"IDLE", "FILLING", "DRAINING", "FULL", "EMPTY"};
 
 int runApi(int argc, char *argv[]) {
